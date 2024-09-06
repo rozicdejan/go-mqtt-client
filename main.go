@@ -2,52 +2,128 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/joho/godotenv"
 )
 
-func main() {
+// Load .env file if it exists in the init function
+func init() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("Warning: .env file not found. Using default values or environment variables.")
+	} else {
+		log.Println(".env file loaded successfully.")
+	}
+	log.Println("MQTT_BROKER:", os.Getenv("MQTT_BROKER"))
+	log.Println("MQTT_CLIENT_ID:", os.Getenv("MQTT_CLIENT_ID"))
+	log.Println("MQTT_TOPIC:", os.Getenv("MQTT_TOPIC"))
+}
+
+// Utility function to get environment variables with a fallback default
+func getEnv(key, fallback string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return fallback
+}
+
+// Configurable variables (loaded after .env is initialized)
+var (
+	mqttBroker = getEnv("MQTT_BROKER", "tcp://localhost:1883")
+	clientID   = getEnv("MQTT_CLIENT_ID", "go_mqtt_client")
+	topic      = getEnv("MQTT_TOPIC", "test/topic")
+	timeout    = 5 * time.Second
+)
+
+// Handle subscription messages
+func messageHandler(client mqtt.Client, msg mqtt.Message) {
+	log.Printf("Received message on topic %s: %s", msg.Topic(), string(msg.Payload()))
+}
+
+// Wait for a token to complete or a timeout
+func waitWithTimeout(token mqtt.Token, timeout time.Duration) error {
+	done := make(chan struct{})
+
+	// Wait in a separate goroutine
+	go func() {
+		token.Wait()
+		close(done)
+	}()
+
+	// Use a select statement to either wait for the token or timeout
+	select {
+	case <-done:
+		return token.Error()
+	case <-time.After(timeout):
+		return fmt.Errorf("operation timed out after %s", timeout)
+	}
+}
+
+// Setup MQTT client and return the client object
+func connectToMQTT() mqtt.Client {
 	// Define the MQTT broker options
-	opts := mqtt.NewClientOptions().AddBroker("tcp://localhost:1883")
-	opts.SetClientID("go_mqtt_client")
+	opts := mqtt.NewClientOptions().AddBroker(mqttBroker)
+	opts.SetClientID(clientID)
+	opts.SetCleanSession(true)
+	opts.SetAutoReconnect(true)
 
 	// Create an MQTT client
 	client := mqtt.NewClient(opts)
 
-	// Connect to the MQTT broker
-	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		fmt.Printf("Failed to connect: %v\n", token.Error())
-		return
+	// Connect to the MQTT broker with a timeout
+	token := client.Connect()
+	if err := waitWithTimeout(token, timeout); err != nil {
+		log.Fatalf("Failed to connect to MQTT broker: %v", err)
 	}
-	fmt.Println("Connected to MQTT broker")
+	log.Println("Connected to MQTT broker")
+	return client
+}
 
-	// Subscribe to the topic "test/topic"
-	topic := "test/topic"
-	if token := client.Subscribe(topic, 0, func(client mqtt.Client, msg mqtt.Message) {
-		fmt.Printf("Received message on topic %s: %s\n", msg.Topic(), string(msg.Payload()))
-	}); token.Wait() && token.Error() != nil {
-		fmt.Printf("Failed to subscribe: %v\n", token.Error())
-		return
+// Subscribe to the MQTT topic with a timeout
+func subscribeToTopic(client mqtt.Client) {
+	// Subscribe to the topic and handle incoming messages
+	token := client.Subscribe(topic, 0, messageHandler)
+	if err := waitWithTimeout(token, timeout); err != nil {
+		log.Fatalf("Failed to subscribe to topic: %v", err)
 	}
-	fmt.Println("Subscribed to topic:", topic)
+	log.Printf("Subscribed to topic: %s", topic)
+}
 
-	// Set up a channel to listen for termination signals (Ctrl+C)
+// Gracefully handle system signals and disconnect the client
+func handleShutdown(client mqtt.Client) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	// Wait for a signal to terminate
-	<-sigChan
-	fmt.Println("\nReceived termination signal, cleaning up...")
+	// Wait for signal
+	sig := <-sigChan
+	log.Printf("Received signal: %v. Cleaning up...", sig)
 
-	// Unsubscribe from the topic and disconnect the client
-	if token := client.Unsubscribe(topic); token.Wait() && token.Error() != nil {
-		fmt.Printf("Failed to unsubscribe: %v\n", token.Error())
+	// Unsubscribe from the topic
+	token := client.Unsubscribe(topic)
+	if err := waitWithTimeout(token, timeout); err != nil {
+		log.Printf("Failed to unsubscribe from topic: %v", err)
 	}
-	client.Disconnect(250)
-	fmt.Println("Disconnected from MQTT broker")
 
-	fmt.Println("Application closed")
+	// Disconnect the client
+	client.Disconnect(250) // 250 ms to complete any pending operations
+	log.Println("Disconnected from MQTT broker")
+
+	log.Println("Application exited gracefully")
+}
+
+func main() {
+	// Connect to the MQTT broker
+	client := connectToMQTT()
+
+	// Subscribe to the topic
+	subscribeToTopic(client)
+
+	// Wait for termination signal and handle shutdown
+	handleShutdown(client)
 }
