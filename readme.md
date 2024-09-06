@@ -74,3 +74,18 @@ To test the messages sent to the MQTT broker, you can use mosquitto_sub to subsc
 ```bash
 mosquitto_sub -h localhost -t "orodje/temp1"
 ```
+## 7. Testing with Continue-Publishing
+To test the messages sent to the MQTT broker, you can use  subscribe to the topic:
+
+```bash
+cd Continue-Publishing
+go mod tidy
+go run main.go
+```
+example code:
+```bash
+2024/09/06 18:07:41 Published message to topic orodje/temp1: Hello!
+Enter message to send (or press ENTER to send a default message): How are you!
+2024/09/06 18:07:44 Published message to topic orodje/temp1: How are you!
+Enter message to send (or press ENTER to send a default message):
+```
