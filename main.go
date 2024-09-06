@@ -58,14 +58,19 @@ func waitWithTimeout(token mqtt.Token, timeout time.Duration) error {
 }
 
 // Setup MQTT client and return the client object
-func connectToMQTT(broker, clientID string, timeout time.Duration) mqtt.Client {
+func connectToMQTT(broker, clientID string, timeout time.Duration, username string, password string) mqtt.Client {
 	// Define the MQTT broker options
 	opts := mqtt.NewClientOptions().AddBroker(broker)
 	opts.SetClientID(clientID)
 	opts.SetCleanSession(true)
 	opts.SetAutoReconnect(true)
+	opts.SetUsername(username)
+	opts.SetPassword(password)
 
+	// Set callback for connection lost (including duplicate client ID detection)
+	opts.OnConnectionLost = onConnectionLost
 	// Create an MQTT client
+
 	client := mqtt.NewClient(opts)
 
 	// Connect to the MQTT broker with a timeout
@@ -80,6 +85,7 @@ func connectToMQTT(broker, clientID string, timeout time.Duration) mqtt.Client {
 // Subscribe to the MQTT topic with a timeout
 func subscribeToTopic(client mqtt.Client, topic string, timeout time.Duration) {
 	// Subscribe to the topic and handle incoming messages
+	//token := client.Subscribe("plc/temperature", 1, messageHandler) // QoS 1
 	token := client.Subscribe(topic, 0, messageHandler)
 	if err := waitWithTimeout(token, timeout); err != nil {
 		log.Fatalf("Failed to subscribe to topic: %v", err)
@@ -114,19 +120,34 @@ func main() {
 	mqttBroker := getEnv("MQTT_BROKER", "tcp://localhost:1883")
 	clientID := getEnv("MQTT_CLIENT_ID", "go_mqtt_client")
 	topic := getEnv("MQTT_TOPIC", "test/topic")
+	username := getEnv("USERNAME", "admin")
+	password := getEnv("PASSWORD", "admin")
 	timeout := 5 * time.Second
 
 	// Log to see if the environment variables are correctly loaded
 	log.Println("Using MQTT_BROKER:", mqttBroker)
 	log.Println("Using MQTT_CLIENT_ID:", clientID)
 	log.Println("Using MQTT_TOPIC:", topic)
+	log.Println("USERNAME: ", username)
+	log.Println("PASSWORD: ", password)
 
 	// Connect to the MQTT broker
-	client := connectToMQTT(mqttBroker, clientID, timeout)
+	client := connectToMQTT(mqttBroker, clientID, timeout, username, password)
 
 	// Subscribe to the topic
 	subscribeToTopic(client, topic, timeout)
 
 	// Wait for termination signal and handle shutdown
 	handleShutdown(client, topic, timeout)
+}
+
+// Handle connection lost event (for duplicate client IDs)
+func onConnectionLost(client mqtt.Client, err error) {
+	log.Printf("Connection lost: %v", err)
+	if err.Error() == "Connection refused: identifier rejected" {
+		log.Println("Duplicate client ID detected.")
+	}
+	if err.Error() == "EOF" {
+		log.Println("Duplicate client ID detected.")
+	}
 }

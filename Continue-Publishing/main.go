@@ -23,6 +23,8 @@ func init() {
 	log.Println("MQTT_BROKER:", os.Getenv("MQTT_BROKER"))
 	log.Println("MQTT_CLIENT_ID:", os.Getenv("MQTT_CLIENT_ID"))
 	log.Println("MQTT_TOPIC:", os.Getenv("MQTT_TOPIC"))
+	log.Println("USERNAME: ", os.Getenv("USERNAME"))
+	log.Println("PASSWORD: ", os.Getenv("PASSWORD"))
 }
 
 // Utility function to get environment variables with a fallback default
@@ -61,12 +63,17 @@ func waitWithTimeout(token mqtt.Token, timeout time.Duration) error {
 }
 
 // Setup MQTT client and return the client object
-func connectToMQTT(broker, clientID string, timeout time.Duration) mqtt.Client {
+func connectToMQTT(broker, clientID string, timeout time.Duration, username string, password string) mqtt.Client {
 	// Define the MQTT broker options
 	opts := mqtt.NewClientOptions().AddBroker(broker)
 	opts.SetClientID(clientID)
 	opts.SetCleanSession(true)
 	opts.SetAutoReconnect(true)
+	opts.SetUsername(username)
+	opts.SetPassword(password)
+
+	// Set callback for connection lost (including duplicate client ID detection)
+	opts.OnConnectionLost = onConnectionLost
 
 	// Create an MQTT client
 	client := mqtt.NewClient(opts)
@@ -94,10 +101,12 @@ func main() {
 	mqttBroker := getEnv("MQTT_BROKER", "tcp://localhost:1883")
 	clientID := getEnv("MQTT_CLIENT_ID", "go_mqtt_client")
 	topic := getEnv("MQTT_TOPIC", "orodje/temp1")
+	username := getEnv("USERNAME", "admin")
+	password := getEnv("PASSWORD", "admin")
 	timeout := 5 * time.Second
 
 	// Connect to the MQTT broker
-	client := connectToMQTT(mqttBroker, clientID, timeout)
+	client := connectToMQTT(mqttBroker, clientID, timeout, username, password)
 
 	// Create a reader to capture input from the user
 	reader := bufio.NewReader(os.Stdin)
@@ -117,5 +126,16 @@ func main() {
 
 		// Publish the message to the MQTT topic
 		publishMessage(client, topic, message, timeout)
+	}
+}
+
+// Handle connection lost event (for duplicate client IDs)
+func onConnectionLost(client mqtt.Client, err error) {
+	log.Printf("Connection lost: %v", err)
+	if err.Error() == "Connection refused: identifier rejected" {
+		log.Println("Duplicate client ID detected.")
+	}
+	if err.Error() == "EOF" {
+		log.Println("Duplicate client ID detected.")
 	}
 }
