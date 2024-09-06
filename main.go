@@ -33,14 +33,6 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-// Configurable variables (loaded after .env is initialized)
-var (
-	mqttBroker = getEnv("MQTT_BROKER", "tcp://localhost:1883")
-	clientID   = getEnv("MQTT_CLIENT_ID", "go_mqtt_client")
-	topic      = getEnv("MQTT_TOPIC", "test/topic")
-	timeout    = 5 * time.Second
-)
-
 // Handle subscription messages
 func messageHandler(client mqtt.Client, msg mqtt.Message) {
 	log.Printf("Received message on topic %s: %s", msg.Topic(), string(msg.Payload()))
@@ -66,9 +58,9 @@ func waitWithTimeout(token mqtt.Token, timeout time.Duration) error {
 }
 
 // Setup MQTT client and return the client object
-func connectToMQTT() mqtt.Client {
+func connectToMQTT(broker, clientID string, timeout time.Duration) mqtt.Client {
 	// Define the MQTT broker options
-	opts := mqtt.NewClientOptions().AddBroker(mqttBroker)
+	opts := mqtt.NewClientOptions().AddBroker(broker)
 	opts.SetClientID(clientID)
 	opts.SetCleanSession(true)
 	opts.SetAutoReconnect(true)
@@ -86,7 +78,7 @@ func connectToMQTT() mqtt.Client {
 }
 
 // Subscribe to the MQTT topic with a timeout
-func subscribeToTopic(client mqtt.Client) {
+func subscribeToTopic(client mqtt.Client, topic string, timeout time.Duration) {
 	// Subscribe to the topic and handle incoming messages
 	token := client.Subscribe(topic, 0, messageHandler)
 	if err := waitWithTimeout(token, timeout); err != nil {
@@ -96,7 +88,7 @@ func subscribeToTopic(client mqtt.Client) {
 }
 
 // Gracefully handle system signals and disconnect the client
-func handleShutdown(client mqtt.Client) {
+func handleShutdown(client mqtt.Client, topic string, timeout time.Duration) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
@@ -118,12 +110,23 @@ func handleShutdown(client mqtt.Client) {
 }
 
 func main() {
+	// Load environment variables after .env has been loaded
+	mqttBroker := getEnv("MQTT_BROKER", "tcp://localhost:1883")
+	clientID := getEnv("MQTT_CLIENT_ID", "go_mqtt_client")
+	topic := getEnv("MQTT_TOPIC", "test/topic")
+	timeout := 5 * time.Second
+
+	// Log to see if the environment variables are correctly loaded
+	log.Println("Using MQTT_BROKER:", mqttBroker)
+	log.Println("Using MQTT_CLIENT_ID:", clientID)
+	log.Println("Using MQTT_TOPIC:", topic)
+
 	// Connect to the MQTT broker
-	client := connectToMQTT()
+	client := connectToMQTT(mqttBroker, clientID, timeout)
 
 	// Subscribe to the topic
-	subscribeToTopic(client)
+	subscribeToTopic(client, topic, timeout)
 
 	// Wait for termination signal and handle shutdown
-	handleShutdown(client)
+	handleShutdown(client, topic, timeout)
 }
