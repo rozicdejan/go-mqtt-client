@@ -59,9 +59,11 @@ func waitWithTimeout(token mqtt.Token, timeout time.Duration) error {
 
 // Setup MQTT client and return the client object
 func connectToMQTT(broker, clientID string, timeout time.Duration, username string, password string) mqtt.Client {
+	// Generate a unique client ID using the base client ID and a timestamp
+	uniqueClientID := fmt.Sprintf("%s-%d", clientID, time.Now().UnixNano())
 	// Define the MQTT broker options
 	opts := mqtt.NewClientOptions().AddBroker(broker)
-	opts.SetClientID(clientID)
+	opts.SetClientID(uniqueClientID)
 	opts.SetCleanSession(true)
 	opts.SetAutoReconnect(true)
 	opts.SetUsername(username)
