@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
-	"time"
+	"os"
+	"os/signal"
+	"syscall"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -22,20 +24,30 @@ func main() {
 	}
 	fmt.Println("Connected to MQTT broker")
 
-	// Subscribe to a topic
+	// Subscribe to the topic "test/topic"
 	topic := "test/topic"
-	client.Subscribe(topic, 0, func(client mqtt.Client, msg mqtt.Message) {
+	if token := client.Subscribe(topic, 0, func(client mqtt.Client, msg mqtt.Message) {
 		fmt.Printf("Received message on topic %s: %s\n", msg.Topic(), string(msg.Payload()))
-	})
+	}); token.Wait() && token.Error() != nil {
+		fmt.Printf("Failed to subscribe: %v\n", token.Error())
+		return
+	}
+	fmt.Println("Subscribed to topic:", topic)
 
-	// Publish a message to the topic
-	token := client.Publish(topic, 0, false, "Hello from Go!")
-	token.Wait()
+	// Set up a channel to listen for termination signals (Ctrl+C)
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	// Wait for a while to receive messages
-	time.Sleep(2 * time.Second)
+	// Wait for a signal to terminate
+	<-sigChan
+	fmt.Println("\nReceived termination signal, cleaning up...")
 
-	// Disconnect from the broker
+	// Unsubscribe from the topic and disconnect the client
+	if token := client.Unsubscribe(topic); token.Wait() && token.Error() != nil {
+		fmt.Printf("Failed to unsubscribe: %v\n", token.Error())
+	}
 	client.Disconnect(250)
 	fmt.Println("Disconnected from MQTT broker")
+
+	fmt.Println("Application closed")
 }
