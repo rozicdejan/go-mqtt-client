@@ -20,11 +20,11 @@ func init() {
 	} else {
 		log.Println(".env file loaded successfully.")
 	}
-	log.Println("MQTT_BROKER:", os.Getenv("MQTT_BROKER"))
-	log.Println("MQTT_CLIENT_ID:", os.Getenv("MQTT_CLIENT_ID"))
-	log.Println("MQTT_TOPIC:", os.Getenv("MQTT_TOPIC"))
-	log.Println("USERNAME: ", os.Getenv("USERNAME"))
-	log.Println("PASSWORD: ", os.Getenv("PASSWORD"))
+	log.Println("ENV MQTT_BROKER:", os.Getenv("MQTT_BROKER"))
+	log.Println("ENV MQTT_CLIENT_ID:", os.Getenv("MQTT_CLIENT_ID"))
+	log.Println("ENV MQTT_TOPIC:", os.Getenv("MQTT_TOPIC"))
+	log.Println("ENV USERNAME: ", os.Getenv("USERNAME"))
+	log.Println("ENV PASSWORD: ", os.Getenv("PASSWORD"))
 }
 
 // Utility function to get environment variables with a fallback default
@@ -65,10 +65,10 @@ func waitWithTimeout(token mqtt.Token, timeout time.Duration) error {
 // Setup MQTT client and return the client object
 func connectToMQTT(broker, clientID string, timeout time.Duration, username string, password string) mqtt.Client {
 	// Generate a unique client ID using the base client ID and a timestamp
-	uniqueClientID := fmt.Sprintf("%s-%d", clientID, time.Now().UnixNano())
+	//uniqueClientID := fmt.Sprintf("%s-%d", clientID, time.Now().UnixNano())
 	// Define the MQTT broker options
 	opts := mqtt.NewClientOptions().AddBroker(broker)
-	opts.SetClientID(uniqueClientID)
+	opts.SetClientID(clientID)
 	opts.SetCleanSession(true)
 	opts.SetAutoReconnect(true)
 	opts.SetUsername(username)
