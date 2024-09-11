@@ -26,7 +26,7 @@ func generateVoltage() float64 {
 }
 
 // Create YSON (JSON in Go's terms) format for 360 data points
-// It also dynamically calculates timestamp in nanoseconds
+// It calculates the timestamps based on the current time
 func generateEncoderData(startTime int64, nsPerDegree int64) string {
 	data := make([]EncoderData, 360)
 	for i := 0; i < 360; i++ {
@@ -51,11 +51,11 @@ func publishData(client MQTT.Client, topic string, data string) {
 
 // Main loop to send data based on RPS (Revolutions Per Second)
 func startPublishing(client MQTT.Client, rps float64, topic string, stopCh <-chan struct{}) {
-	// Time per full turn (in milliseconds)
-	timePerFullTurn := time.Duration(1.0/rps*1000) * time.Millisecond
+	// Time per full turn (in nanoseconds)
+	nsPerFullTurn := int64((1.0 / rps) * 1e9)
 
 	// Time per degree in nanoseconds
-	nsPerDegree := int64((1.0 / (rps * 360.0)) * 1e9) // Convert time per degree to nanoseconds
+	nsPerDegree := nsPerFullTurn / 360
 
 	for {
 		select {
@@ -73,7 +73,7 @@ func startPublishing(client MQTT.Client, rps float64, topic string, stopCh <-cha
 			log.Println("Published data to MQTT broker")
 
 			// Wait for the next full turn
-			time.Sleep(timePerFullTurn)
+			time.Sleep(time.Duration(nsPerFullTurn) * time.Nanosecond)
 		}
 	}
 }
@@ -81,8 +81,8 @@ func startPublishing(client MQTT.Client, rps float64, topic string, stopCh <-cha
 func main() {
 	// Initialize MQTT connection options
 	opts := MQTT.NewClientOptions()
-	opts.AddBroker("tcp://192.168.33.1:1883")
-	opts.SetClientID("encoder_simulator")
+	opts.AddBroker("tcp://192.168.1.1:1883")
+	opts.SetClientID("encoder_simulator44")
 
 	// Create MQTT client
 	client := MQTT.NewClient(opts)
