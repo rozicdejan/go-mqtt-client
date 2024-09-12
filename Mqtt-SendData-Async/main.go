@@ -2,15 +2,16 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"math/rand"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
+	"github.com/joho/godotenv"
 )
 
 // EncoderData struct holds angle, voltage, and timestamp in nanoseconds
@@ -106,10 +107,36 @@ func dataSender(client MQTT.Client, topic string, dataQueue chan string, stopCh 
 }
 
 func main() {
+	// Load the environment variables from the .env file
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalf("Error loading .env file: %v", err)
+	}
+
+	// Read MQTT broker, client ID, topic, and RPS from the .env file
+	mqttBroker := os.Getenv("MQTT_BROKER")
+	clientID := os.Getenv("CLIENT_ID")
+	topic := os.Getenv("TOPIC")
+	rpsStr := os.Getenv("RPS")
+	queueSizeStr := os.Getenv("QUEUE_SIZE")
+
+	// Convert RPS and queue size to appropriate types
+	rps, err := strconv.ParseFloat(rpsStr, 64)
+	if err != nil {
+		log.Printf("Invalid RPS value, defaulting to 1.0")
+		rps = 1.0
+	}
+
+	queueSize, err := strconv.Atoi(queueSizeStr)
+	if err != nil {
+		log.Printf("Invalid QUEUE_SIZE value, defaulting to 10")
+		queueSize = 10
+	}
+
 	// Initialize MQTT connection options
 	opts := MQTT.NewClientOptions()
-	opts.AddBroker("tcp://192.168.1.1:1883")
-	opts.SetClientID("encoder_simulator44")
+	opts.AddBroker(mqttBroker)
+	opts.SetClientID(clientID)
 
 	// Create MQTT client
 	client := MQTT.NewClient(opts)
@@ -119,22 +146,8 @@ func main() {
 	defer client.Disconnect(250)
 	log.Println("Connected to MQTT broker")
 
-	// RPS (Revolutions Per Second) variable
-	rps := 1.0 // Default to 1 revolution per second
-
-	// Read RPS from the environment or use default
-	if len(os.Args) > 1 {
-		if val, err := fmt.Sscanf(os.Args[1], "%f", &rps); err != nil || val != 1 {
-			log.Println("Invalid RPS value, defaulting to 1 RPS")
-			rps = 1.0
-		}
-	}
-
-	// MQTT topic to publish data to
-	topic := "encoder/data"
-
 	// Create a buffered channel for data queue
-	dataQueue := make(chan string, 10) // Buffer size 10
+	dataQueue := make(chan string, queueSize) // Buffer size from .env
 
 	// Channel to handle graceful shutdown
 	stopCh := make(chan struct{})
