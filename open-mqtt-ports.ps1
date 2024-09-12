@@ -21,3 +21,7 @@ Write-Host "MQTT ports (1883 and 8883) opened successfully for inbound and outbo
 
 # Restore the original execution policy
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy $originalPolicy -Force
+
+# Wait for user to press Enter before exiting
+Write-Host "Press Enter to exit..."
+[void][System.Console]::ReadLine()
