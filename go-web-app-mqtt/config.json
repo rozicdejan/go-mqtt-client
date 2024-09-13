@@ -1,0 +1,9 @@
+{
+    "web_app_port": 8081,
+    "mqtt_broker_url": "tcp://192.168.33.1:1883",
+    "mqtt_client_id": "go_mqtt_client_example34343434",
+    "mqtt_topics": [
+      "/example/topic1"
+    ]
+  }
+  
