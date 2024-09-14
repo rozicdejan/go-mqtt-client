@@ -14,13 +14,14 @@ MQTT Broker – You can use a local broker or a public broker like HiveMQ for te
 # Setup Instructions
 ## Clone the Repository
 ```go
-git clone https://github.com/your-username/go-web-app-mqtt.git
-cd go-web-app-mqtt
+git clone https://github.com/rozicdejan/go-mqtt-client.git
+cd go-mqtt-cient/go-web-app-mqtt
 ```
 ## Install Dependencies
+
 ```go
 go mod tidy
-'''
+```
 ## Create or Use the SQLite Database (Optionally)
 The application uses an SQLite database (mqtt_data.db) to store incoming MQTT messages. If the file doesn't exist, the application will create it on startup.
 
