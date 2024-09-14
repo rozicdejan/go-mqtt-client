@@ -19,8 +19,9 @@ type Config struct {
 	MQTTTopics    []string `json:"mqtt_topics"`
 }
 
-var receivedMessages []string
-var mutex sync.Mutex
+var receivedMessages []string // Store all received messages
+var lastSentIndex int         // Index to track last sent message
+var mutex sync.Mutex          // Ensure safe access to receivedMessages
 
 func main() {
 	// Load configuration
@@ -89,11 +90,13 @@ func startWebServer(port int) {
 		c.HTML(http.StatusOK, "index.html", nil)
 	})
 
-	// Serve the latest messages as JSON
+	// Serve only new messages as JSON
 	router.GET("/messages", func(c *gin.Context) {
 		mutex.Lock()
-		data := receivedMessages
+		data := receivedMessages[lastSentIndex:] // Get only new messages since lastSentIndex
+		lastSentIndex = len(receivedMessages)    // Update lastSentIndex to the current message count
 		mutex.Unlock()
+
 		c.JSON(http.StatusOK, data)
 	})
 

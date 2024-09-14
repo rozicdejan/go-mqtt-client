@@ -22,8 +22,10 @@
         ul {
             list-style-type: none;
             padding: 0;
-            max-width: 1400x;
+            max-width: 1400px;
             margin: 20px auto;
+            height: 100vh;
+            overflow-y: auto;
         }
 
         li {
@@ -68,12 +70,14 @@
             .then(response => response.json())
             .then(data => {
                 const messagesList = $('#messages');
-                messagesList.empty(); // Clear the existing messages
 
                 if (data.length === 0) {
-                    messagesList.html('<li>No messages received yet.</li>');
+                    if ($('#messages li').length === 0) {
+                        messagesList.html('<li>No messages received yet.</li>');
+                    }
                 } else {
-                    data.reverse().forEach(message => {
+                    // Add new messages at the top of the list
+                    data.forEach(message => {
                         const listItem = $('<li></li>').text(message);
 
                         // Add timestamp for each message
@@ -82,8 +86,8 @@
 
                         listItem.append(timeElement);
 
-                        // Insert at the top with a fade-in effect
-                        listItem.prependTo(messagesList).fadeIn(800); // Fade in over 800 milliseconds
+                        // Insert the new message at the top with a fade-in effect
+                        listItem.hide().prependTo(messagesList).fadeIn(800);
                     });
                 }
             })
