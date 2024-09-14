@@ -165,6 +165,9 @@ func startWebServer(port int) {
 		c.HTML(http.StatusOK, "index.html", nil)
 	})
 
+	// Serve config.json as a JSON response via the /config endpoint
+	router.GET("/config", serveConfigJSON)
+
 	// Serve only new messages as JSON
 	router.GET("/messages", func(c *gin.Context) {
 		mutex.RLock()                            // Use RLock to allow concurrent reads
@@ -177,4 +180,27 @@ func startWebServer(port int) {
 
 	addr := fmt.Sprintf(":%d", port)
 	router.Run(addr)
+}
+
+// serveConfigJSON reads the config.json file and serves it as JSON
+func serveConfigJSON(c *gin.Context) {
+	// Read the config.json file from the root directory
+	file, err := ioutil.ReadFile("config.json")
+	if err != nil {
+		log.Fatalf("Error reading config.json: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not read config file"})
+		return
+	}
+
+	// Unmarshal the JSON file into the Config struct
+	var config Config
+	err = json.Unmarshal(file, &config)
+	if err != nil {
+		log.Fatalf("Error unmarshalling config.json: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid config format"})
+		return
+	}
+
+	// Serve the config as JSON
+	c.JSON(http.StatusOK, config)
 }
