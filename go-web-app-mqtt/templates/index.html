@@ -54,6 +54,24 @@
             margin-top: 5px;
             text-align: right;
         }
+
+        footer {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+
+        footer a {
+            color: #0a9396;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
     </style>
     <!-- Include jQuery from a CDN -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -63,6 +81,10 @@
     <ul id="messages">
         <li>No messages received yet.</li>
     </ul>
+
+    <footer>
+        Made by <a href="https://www.linkedin.com/in/dejan-rožič" target="_blank">Dejan Rožič</a>.
+    </footer>
 
     <script>
         function fetchMessages() {

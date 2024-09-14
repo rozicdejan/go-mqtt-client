@@ -15,6 +15,7 @@ import (
 	_ "github.com/mattn/go-sqlite3" // Import SQLite driver
 )
 
+// Config struct to hold the application configuration
 type Config struct {
 	WebAppPort    int      `json:"web_app_port"`
 	MQTTBrokerURL string   `json:"mqtt_broker_url"`
@@ -22,10 +23,13 @@ type Config struct {
 	MQTTTopics    []string `json:"mqtt_topics"`
 }
 
-var receivedMessages []string // Store all received messages in memory
-var lastSentIndex int         // Index to track last sent message
-var mutex sync.Mutex          // Ensure safe access to receivedMessages
-var db *sql.DB                // SQLite database connection
+var (
+	receivedMessages []string                       // Store all received messages in memory
+	lastSentIndex    int                            // Index to track last sent message
+	db               *sql.DB                        // SQLite database connection
+	messageChan      = make(chan mqtt.Message, 100) // Buffered channel for MQTT messages
+	mutex            sync.RWMutex                   // RWMutex for handling shared resources
+)
 
 func main() {
 	// Load configuration
@@ -41,6 +45,9 @@ func main() {
 	for _, topic := range config.MQTTTopics {
 		subscribeToTopic(mqttClient, topic)
 	}
+
+	// Start a background goroutine to process messages from the channel
+	go processMessages()
 
 	// Start the web server
 	startWebServer(config.WebAppPort)
@@ -87,7 +94,7 @@ func initDatabase() {
 	fmt.Println("Database and table initialized.")
 }
 
-// Insert the MQTT message into the database
+// Save the MQTT message into the database (run this in a separate goroutine)
 func saveMessageToDB(topic string, message string) {
 	insertQuery := `
 	INSERT INTO mqtt_data_received (topic, message, received_at)
@@ -117,20 +124,31 @@ func connectToMQTTBroker(config Config) mqtt.Client {
 // Subscribe to the MQTT topics and handle incoming messages
 func subscribeToTopic(client mqtt.Client, topic string) {
 	token := client.Subscribe(topic, 0, func(client mqtt.Client, msg mqtt.Message) {
-		mutex.Lock()
-		receivedMessages = append(receivedMessages, fmt.Sprintf("Topic: %s, Message: %s", msg.Topic(), string(msg.Payload())))
-		mutex.Unlock()
-
-		// Save the message to the database
-		saveMessageToDB(msg.Topic(), string(msg.Payload()))
-
-		fmt.Printf("Received message from topic %s: %s\n", msg.Topic(), string(msg.Payload()))
+		// Pass the received message to the channel
+		messageChan <- msg
 	})
 	token.Wait()
 	if token.Error() != nil {
 		log.Fatalf("Error subscribing to topic %s: %v", topic, token.Error())
 	}
 	fmt.Println("Subscribed to topic:", topic)
+}
+
+// Process messages from the channel in the background
+func processMessages() {
+	for msg := range messageChan {
+		messageContent := fmt.Sprintf("Topic: %s, Message: %s", msg.Topic(), string(msg.Payload()))
+
+		// Append the message to the receivedMessages slice in a thread-safe way
+		mutex.Lock()
+		receivedMessages = append(receivedMessages, messageContent)
+		mutex.Unlock()
+
+		// Save the message to the database (non-blocking)
+		go saveMessageToDB(msg.Topic(), string(msg.Payload()))
+
+		fmt.Printf("Processed message from topic %s: %s\n", msg.Topic(), string(msg.Payload()))
+	}
 }
 
 // Start the web server to serve the frontend and messages
@@ -146,10 +164,10 @@ func startWebServer(port int) {
 
 	// Serve only new messages as JSON
 	router.GET("/messages", func(c *gin.Context) {
-		mutex.Lock()
+		mutex.RLock()                            // Use RLock to allow concurrent reads
 		data := receivedMessages[lastSentIndex:] // Get only new messages since lastSentIndex
 		lastSentIndex = len(receivedMessages)    // Update lastSentIndex to the current message count
-		mutex.Unlock()
+		mutex.RUnlock()
 
 		c.JSON(http.StatusOK, data)
 	})
