@@ -155,6 +155,9 @@ func processMessages() {
 func startWebServer(port int) {
 	router := gin.Default()
 
+	// Serve static files from the "css" directory
+	router.Static("/css", "./css")
+
 	router.LoadHTMLGlob("templates/*")
 
 	// Serve the index.html page

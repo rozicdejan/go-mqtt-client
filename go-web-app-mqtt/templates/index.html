@@ -4,79 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MQTT Data</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <!-- Default to Style 1 (Dark) -->
+    <link id="themeStylesheet" rel="stylesheet" href="/css/style1.css?v=1.0">
+
     <style>
-        body {
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            background-color: #f4f4f9;
-            color: #333;
-            margin: 0;
-            padding: 20px;
-        }
-
-        h1 {
+        /* Icon for style toggle */
+        .style-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
             font-size: 2rem;
-            color: #005f73;
-            text-align: center;
+            cursor: pointer;
+            color: #333;
         }
 
-        ul {
-            list-style-type: none;
-            padding: 0;
-            max-width: 1400px;
-            margin: 20px auto;
-            height: 100vh;
-            overflow-y: auto;
+        .style-toggle i {
+            transition: color 0.3s ease;
         }
 
-        li {
-            background: #ffffff;
-            border-left: 5px solid #0a9396;
-            padding: 15px;
-            margin-bottom: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            font-size: 1.1rem;
-            line-height: 1.6;
-            display: none; /* Hide initially for animation */
+        .style-toggle i.light-mode {
+            color: #0077b6;
         }
 
-        li:nth-child(odd) {
-            background-color: #e9ecef;
-        }
-
-        li:last-child {
-            margin-bottom: 0;
-        }
-
-        .timestamp {
-            display: block;
-            font-size: 0.9rem;
-            color: #6c757d;
-            margin-top: 5px;
-            text-align: right;
-        }
-
-        footer {
-            text-align: center;
-            font-size: 0.9rem;
-            color: #6c757d;
-            margin-top: 20px;
-            padding: 20px;
-            background-color: #f4f4f9;
-        }
-
-        footer a {
-            color: #0a9396;
-            text-decoration: none;
-        }
-
-        footer a:hover {
-            text-decoration: underline;
+        .style-toggle i.dark-mode {
+            color: #00ffdd;
         }
     </style>
-    <!-- Include jQuery from a CDN -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
 </head>
 <body>
+
     <h1>MQTT Data</h1>
     <ul id="messages">
         <li>No messages received yet.</li>
@@ -86,7 +45,52 @@
         Made by <a href="https://www.linkedin.com/in/dejan-rožič" target="_blank">Dejan Rožič</a>.
     </footer>
 
+    <!-- Icon to toggle between styles -->
+    <div class="style-toggle" onclick="toggleStyle()">
+        <i id="styleIcon" class="fas fa-sun light-mode"></i>
+    </div>
+
+    <!-- jQuery and Fetch Script for Messages -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
     <script>
+        // Check localStorage for theme on page load
+        document.addEventListener("DOMContentLoaded", function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'style2') {
+                setStyle2();
+            } else {
+                setStyle1(); // Default to style1 (dark mode)
+            }
+        });
+
+        function toggleStyle() {
+            const currentTheme = localStorage.getItem('theme');
+
+            if (currentTheme === 'style1') {
+                setStyle2(); // Switch to style2
+            } else {
+                setStyle1(); // Switch to style1
+            }
+        }
+
+        function setStyle1() {
+            document.getElementById("themeStylesheet").setAttribute("href", "/css/style1.css");
+            localStorage.setItem('theme', 'style1'); // Save preference in localStorage
+            document.getElementById("styleIcon").classList.remove('fa-moon');
+            document.getElementById("styleIcon").classList.add('fa-sun', 'light-mode');
+            document.getElementById("styleIcon").classList.remove('dark-mode');
+        }
+
+        function setStyle2() {
+            document.getElementById("themeStylesheet").setAttribute("href", "/css/style2.css");
+            localStorage.setItem('theme', 'style2'); // Save preference in localStorage
+            document.getElementById("styleIcon").classList.remove('fa-sun');
+            document.getElementById("styleIcon").classList.add('fa-moon', 'dark-mode');
+            document.getElementById("styleIcon").classList.remove('light-mode');
+        }
+
+        // Fetch messages function remains the same
         function fetchMessages() {
             fetch('/messages')
             .then(response => response.json())
@@ -98,17 +102,11 @@
                         messagesList.html('<li>No messages received yet.</li>');
                     }
                 } else {
-                    // Add new messages at the top of the list
                     data.forEach(message => {
                         const listItem = $('<li></li>').text(message);
-
-                        // Add timestamp for each message
                         const timestamp = new Date().toLocaleTimeString();
                         const timeElement = $('<span></span>').addClass('timestamp').text(`Received at ${timestamp}`);
-
                         listItem.append(timeElement);
-
-                        // Insert the new message at the top with a fade-in effect
                         listItem.hide().prependTo(messagesList).fadeIn(800);
                     });
                 }
@@ -118,9 +116,10 @@
             });
         }
 
-        // Fetch messages every 5 seconds
+        // Fetch messages every second
         setInterval(fetchMessages, 1000);
-        fetchMessages(); // Fetch messages immediately when the page loads
+        fetchMessages(); 
     </script>
+
 </body>
 </html>

@@ -1,0 +1,82 @@
+body {
+        font-family: 'Arial', sans-serif;
+        background-color: #fafafa;
+        color: #444;
+        margin: 0;
+        padding: 20px;
+    }
+
+    h1 {
+        font-size: 2.5rem;
+        color: #0077b6;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    ul {
+        list-style-type: none;
+        padding: 0;
+        max-width: 1200px;
+        margin: 20px auto;
+        height: 100vh;
+        overflow-y: auto;
+    }
+
+    li {
+        background: #ffffff;
+        border: 2px solid #0077b6;
+        padding: 15px;
+        margin-bottom: 15px;
+        font-size: 1.1rem;
+        line-height: 1.5;
+        border-radius: 5px;
+        transition: background 0.3s ease;
+        display: none; /* Hide initially for animation */
+    }
+
+    li:hover {
+        background-color: #e0f7fa;
+    }
+
+    .timestamp {
+        display: block;
+        font-size: 0.9rem;
+        color: #666;
+        margin-top: 5px;
+        text-align: right;
+    }
+
+    footer {
+        text-align: center;
+        font-size: 0.8rem;
+        color: #666;
+        margin-top: 20px;
+    }
+
+    footer a {
+        color: #0077b6;
+        text-decoration: none;
+    }
+
+    footer a:hover {
+        text-decoration: underline;
+    }
+/* Light Mode Scrollbar */
+::-webkit-scrollbar {
+    width: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f0f0f0;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #0077b6;
+    border-radius: 10px;
+    border: 3px solid #f0f0f0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: #005f8f;
+}
